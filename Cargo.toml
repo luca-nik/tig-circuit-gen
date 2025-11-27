@@ -1,0 +1,13 @@
+[package]
+name = "tig-circuit-gen"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rand = "0.8"
+rand_chacha = "0.3" # Deterministic PRNG
+sha2 = "0.10"       # To hash the seed string
+clap = { version = "4.4", features = ["derive"] } # CLI parsing
+hex = "0.4"
+indicatif = "0.17"  # Progress bar for calibration
+regex = "1.10"  

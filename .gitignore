@@ -1,0 +1,5 @@
+/target
+challenge_js/
+*.circom
+*.r1cs
+*.sym
