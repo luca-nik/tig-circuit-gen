@@ -240,12 +240,10 @@ done
 # Quick validation of a single tier
 ./target/release/tig-circuit-gen calibrate --difficulty 5 --samples 50
 
-# Full validation suite (takes ~10-15 minutes)
+# Full validation suite (takes ~2 minutes)
 for i in {1..10}; do 
     echo "Testing Tier $i..."
     ./target/release/tig-circuit-gen calibrate --difficulty $i --samples 50
     echo "---"
 done
-```
-
 ```
