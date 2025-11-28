@@ -167,9 +167,7 @@ pub fn difficulty_to_config(delta: u32) -> CircuitConfig {
 
 After editing, rebuild with `cargo build --release` and run `calibrate` to verify your new settings.
 
-## 🎯 Complete Competition Workflows
-
-### For Challenge Organizers:
+## 🎯 Workflow
 
 ```bash
 # 1. Generate the official challenge instance
@@ -187,44 +185,6 @@ circom official_challenge.circom --r1cs --wasm --sym --O0
 # 4. Inspect baseline statistics
 snarkjs r1cs info official_challenge.r1cs
 # Example output: "5000 constraints" = baseline participants must beat
-```
-
-### For Participants:
-
-```bash
-# 1. Receive challenge files: challenge.circom, challenge.r1cs
-# 2. Analyze the baseline circuit
-snarkjs r1cs info challenge.r1cs
-snarkjs r1cs print challenge.r1cs | head -20  # View first 20 constraints
-
-# 3. Create your optimized version (manual optimization, custom tools, etc.)
-# Edit challenge.circom → optimized_challenge.circom
-
-# 4. Compile your optimized solution
-circom optimized_challenge.circom --r1cs --wasm --sym
-
-# 5. Compare constraint counts
-echo "Baseline constraints:"
-snarkjs r1cs info challenge.r1cs | grep "non-linear"
-echo "Optimized constraints:"
-snarkjs r1cs info optimized_challenge.r1cs | grep "non-linear"
-
-# 6. Calculate improvement percentage
-# If baseline=5000, optimized=3200: (5000-3200)/5000 = 36% reduction
-```
-
-### Testing Circuit Equivalence:
-
-```bash
-# Verify your optimized circuit produces the same outputs
-# Generate witness for both circuits with same inputs
-node challenge_js/generate_witness.js challenge.wasm input.json witness_baseline.wtns
-node optimized_challenge_js/generate_witness.js optimized_challenge.wasm input.json witness_optimized.wtns
-
-# Compare outputs (they should be identical)
-snarkjs wtns export json witness_baseline.wtns output_baseline.json
-snarkjs wtns export json witness_optimized.wtns output_optimized.json
-diff output_baseline.json output_optimized.json  # Should be empty
 ```
 
 ## 📊 Understanding Difficulty Parameters
@@ -288,58 +248,4 @@ for i in {1..10}; do
 done
 ```
 
-## 🔧 Troubleshooting
-
-### Common Issues:
-
-#### "circom: command not found"
-```bash
-# Install Circom first
-git clone https://github.com/iden3/circom.git
-cd circom
-cargo build --release
-sudo cp target/release/circom /usr/local/bin/
-```
-
-#### Calibration Always Fails
-```bash
-# Increase sample size for more reliable statistics
-./target/release/tig-circuit-gen calibrate --difficulty 3 --samples 200
-
-# If still failing, the difficulty scaling needs adjustment in src/lib.rs
-```
-
-#### Large Circuit Compilation Errors
-```bash
-# For very large circuits, increase Node.js memory limit
-NODE_OPTIONS="--max-old-space-size=8192" circom challenge.circom --r1cs --wasm
-```
-
-#### "Error: not enough inputs"
-```bash
-# The generated circuits expect exactly 5 inputs
-# Create input.json:
-echo '{"in": ["1", "2", "3", "4", "5"]}' > input.json
-```
-
-## 📈 Performance Expectations
-
-| Difficulty | Constraints | Generation Time | Compilation Time |
-|------------|-------------|-----------------|------------------|
-| 1-3 | 1K-3K | <1s | 1-5s |
-| 4-6 | 4K-6K | 1-2s | 5-30s |
-| 7-10 | 7K-10K | 2-5s | 30s-2min |
-| 11+ | 11K+ | 5s+ | 2min+ |
-
-## 🔗 Useful Aliases
-
-Add to your `~/.bashrc` or `~/.zshrc`:
-
-```bash
-alias tig-tool="./target/release/tig-circuit-gen"
-alias tig-gen="./target/release/tig-circuit-gen generate"
-alias tig-cal="./target/release/tig-circuit-gen calibrate"
-alias circom-info="snarkjs r1cs info"
-alias circom-baseline="circom --r1cs --wasm --sym --O0"
-alias circom-optimized="circom --r1cs --wasm --sym"
 ```
