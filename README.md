@@ -71,15 +71,45 @@ Generates a random `.circom` circuit based on a seed and difficulty level.
 
 ### 2\. Calibrating Difficulty (Admin Only)
 
-Runs a statistical "Variance Control" protocol. It generates multiple random instances for a given tier, attempts to optimize them using `circom --O1`, and ensures the difficulty is consistent (Low Variance).
+Runs a statistical **"Variance Control"** protocol to ensure **Isotropic Difficulty** - that all challenges within a tier offer equivalent optimization potential, preventing "lucky seeds."
 
 ```bash
 # Syntax: calibrate --difficulty <INT> --samples <INT>
 ./target/release/tig-circuit-gen calibrate --difficulty 2 --samples 50
 ```
 
-  * **Output**: Prints Mean Reducibility (how optimizable the tier is) and Variance (stability).
-  * **Goal**: Standard Deviation should be `< 0.05`.
+#### What Calibration Does:
+
+1. **Generates N random instances** with identical difficulty parameters
+2. **Compiles each with `circom --O1`** (reference optimization level)
+3. **Measures "reducibility"** = `1 - (optimized_size / baseline_size)` for each instance
+4. **Calculates statistics**: Mean reducibility and standard deviation across all samples
+5. **Pass/Fail verdict**: Standard deviation must be `< 0.05` for fair competition
+
+#### Interpreting Results:
+
+```bash
+📊 Results for Tier 3
+   Mean Reducibility: 42.30%    # Average optimization potential
+   Variance (Sigma):  0.0423    # Consistency measure
+
+✅ PASS: This tier provides consistent difficulty.
+```
+
+- **Mean Reducibility**: How much optimization is possible (higher = more room for improvement)
+- **Variance (Sigma)**: Consistency across seeds (lower = more fair)
+- **PASS**: σ < 0.05 means all participants face equivalent challenges
+- **FAIL**: σ ≥ 0.05 means some seeds are "luckier" than others
+
+#### If Calibration Fails:
+
+Edit the scaling parameters in `src/lib.rs:17-34`, rebuild, and re-calibrate:
+
+```bash
+# After editing difficulty_to_config()
+cargo build --release
+./target/release/tig-circuit-gen calibrate --difficulty 3 --samples 100
+```
 
 ## 🔗 The Full Pipeline (Generator → Circom → R1CS)
 
@@ -136,3 +166,134 @@ pub fn difficulty_to_config(delta: u32) -> CircuitConfig {
 ```
 
 After editing, rebuild with `cargo build --release` and run `calibrate` to verify your new settings.
+
+## 🎯 Complete Competition Workflows
+
+### For Challenge Organizers:
+
+```bash
+# 1. Generate the official challenge instance
+./target/release/tig-circuit-gen generate \
+    --seed "official_round_1_seed" \
+    --difficulty 5 \
+    --output official_challenge.circom
+
+# 2. Create the baseline R1CS (what participants must beat)
+circom official_challenge.circom --r1cs --wasm --sym --O0
+
+# 3. Verify tier fairness with statistical analysis
+./target/release/tig-circuit-gen calibrate --difficulty 5 --samples 100
+
+# 4. Inspect baseline statistics
+snarkjs r1cs info official_challenge.r1cs
+# Example output: "5000 constraints" = baseline participants must beat
+```
+
+### For Participants:
+
+```bash
+# 1. Receive challenge files: challenge.circom, challenge.r1cs
+# 2. Analyze the baseline circuit
+snarkjs r1cs info challenge.r1cs
+snarkjs r1cs print challenge.r1cs | head -20  # View first 20 constraints
+
+# 3. Create your optimized version (manual optimization, custom tools, etc.)
+# Edit challenge.circom → optimized_challenge.circom
+
+# 4. Compile your optimized solution
+circom optimized_challenge.circom --r1cs --wasm --sym
+
+# 5. Compare constraint counts
+echo "Baseline constraints:"
+snarkjs r1cs info challenge.r1cs | grep "non-linear"
+echo "Optimized constraints:"
+snarkjs r1cs info optimized_challenge.r1cs | grep "non-linear"
+
+# 6. Calculate improvement percentage
+# If baseline=5000, optimized=3200: (5000-3200)/5000 = 36% reduction
+```
+
+### Testing Circuit Equivalence:
+
+```bash
+# Verify your optimized circuit produces the same outputs
+# Generate witness for both circuits with same inputs
+node challenge_js/generate_witness.js challenge.wasm input.json witness_baseline.wtns
+node optimized_challenge_js/generate_witness.js optimized_challenge.wasm input.json witness_optimized.wtns
+
+# Compare outputs (they should be identical)
+snarkjs wtns export json witness_baseline.wtns output_baseline.json
+snarkjs wtns export json witness_optimized.wtns output_optimized.json
+diff output_baseline.json output_optimized.json  # Should be empty
+```
+
+## 📊 Understanding Difficulty Parameters
+
+The generator uses three key parameters that scale with difficulty:
+
+| Parameter | Formula | Effect |
+|-----------|---------|---------|
+| **Constraints** | `δ × 1000` | Linear size scaling |
+| **Redundancy** | `max(0.5 - δ×0.02, 0.05)` | Optimization potential |
+| **Depth** | `10 + δ×5` | Memory pressure |
+
+### Examples:
+- **Difficulty 1**: 1K constraints, 48% redundancy, depth 15
+- **Difficulty 5**: 5K constraints, 40% redundancy, depth 35  
+- **Difficulty 10**: 10K constraints, 30% redundancy, depth 60
+
+## 🔧 Troubleshooting
+
+### Common Issues:
+
+#### "circom: command not found"
+```bash
+# Install Circom first
+git clone https://github.com/iden3/circom.git
+cd circom
+cargo build --release
+sudo cp target/release/circom /usr/local/bin/
+```
+
+#### Calibration Always Fails
+```bash
+# Increase sample size for more reliable statistics
+./target/release/tig-circuit-gen calibrate --difficulty 3 --samples 200
+
+# If still failing, the difficulty scaling needs adjustment in src/lib.rs
+```
+
+#### Large Circuit Compilation Errors
+```bash
+# For very large circuits, increase Node.js memory limit
+NODE_OPTIONS="--max-old-space-size=8192" circom challenge.circom --r1cs --wasm
+```
+
+#### "Error: not enough inputs"
+```bash
+# The generated circuits expect exactly 5 inputs
+# Create input.json:
+echo '{"in": ["1", "2", "3", "4", "5"]}' > input.json
+```
+
+## 📈 Performance Expectations
+
+| Difficulty | Constraints | Generation Time | Compilation Time |
+|------------|-------------|-----------------|------------------|
+| 1-3 | 1K-3K | <1s | 1-5s |
+| 4-6 | 4K-6K | 1-2s | 5-30s |
+| 7-10 | 7K-10K | 2-5s | 30s-2min |
+| 11+ | 11K+ | 5s+ | 2min+ |
+
+## 🔗 Useful Aliases
+
+Add to your `~/.bashrc` or `~/.zshrc`:
+
+```bash
+alias tig-tool="./target/release/tig-circuit-gen"
+alias tig-gen="./target/release/tig-circuit-gen generate"
+alias tig-cal="./target/release/tig-circuit-gen calibrate"
+alias circom-info="snarkjs r1cs info"
+alias circom-baseline="circom --r1cs --wasm --sym --O0"
+alias circom-optimized="circom --r1cs --wasm --sym"
+```
