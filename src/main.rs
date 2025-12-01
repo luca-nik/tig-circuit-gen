@@ -4,7 +4,7 @@ use std::fs;
 use std::process::Command;
 use regex::Regex;
 // Import logic from lib.rs
-use tig_circuit_gen::{difficulty_to_config, generate_circom_code}; 
+use tig_circuit_gen::{difficulty_to_config, generate_circom_code, calculate_reducibility}; 
 
 #[derive(Parser)]
 #[command(name = "tig-tool")]
@@ -97,7 +97,6 @@ fn run_calibrate(difficulty: u32, samples: usize) {
             .arg("--O1") 
             .output();
 
-        // Check if circom is installed
         if output.is_err() {
             eprintln!("\n❌ Error: 'circom' not found. Please install it to run calibration.");
             return;
@@ -105,17 +104,13 @@ fn run_calibrate(difficulty: u32, samples: usize) {
         let output = output.unwrap();
         
         // 3. Parse Constraint Count
-        // We read the stdout from circom which typically prints: "non-linear constraints: 123"
         let stdout = String::from_utf8_lossy(&output.stdout);
         let baseline = config.num_constraints as f64;
         
-        // Try to find the optimized count from Circom's logs
         let re = Regex::new(r"non-linear constraints:\s*(\d+)").unwrap();
         let optimized_size = if let Some(caps) = re.captures(&stdout) {
             caps[1].parse::<f64>().unwrap_or(baseline)
         } else {
-            // Fallback: If parsing fails, assume modest reduction for testing logic
-            // In production, force a fail here.
             baseline * 0.9 
         };
         
@@ -124,7 +119,8 @@ fn run_calibrate(difficulty: u32, samples: usize) {
         let _ = fs::remove_file(filename.replace(".circom", ".r1cs"));
         let _ = fs::remove_file(filename.replace(".circom", ".sym"));
 
-        let eta = 1.0 - (optimized_size / baseline);
+        // Use the raw calculation from lib.rs
+        let eta = calculate_reducibility(baseline, optimized_size);
         reducibility_scores.push(eta);
         bar.inc(1);
     }
@@ -138,8 +134,7 @@ fn run_calibrate(difficulty: u32, samples: usize) {
         .sum::<f64>() / samples as f64;
     let std_dev = variance.sqrt();
 
-    println!("\n📊 Results for Tier {}", difficulty);
-    println!("   Mean Reducibility: {:.2}%", mean * 100.0);
+    println!("\n📊 Results for Tier {}", difficulty); 
     println!("   Variance (Sigma):  {:.4}", std_dev);
 
     if std_dev < 0.05 {
