@@ -90,13 +90,11 @@ Runs a statistical **"Variance Control"** protocol to ensure **Isotropic Difficu
 
 ```bash
 📊 Results for Tier 3
-   Mean Reducibility: 42.30%    # Average optimization potential
    Variance (Sigma):  0.0423    # Consistency measure
 
 ✅ PASS: This tier provides consistent difficulty.
 ```
 
-- **Mean Reducibility**: How much optimization is possible (higher = more room for improvement)
 - **Variance (Sigma)**: Consistency across seeds (lower = more fair)
 - **PASS**: σ < 0.05 means all participants face equivalent challenges
 - **FAIL**: σ ≥ 0.05 means some seeds are "luckier" than others
