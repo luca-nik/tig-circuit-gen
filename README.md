@@ -297,3 +297,6 @@ for i in {1..10}; do
     echo "---"
 done
 ```
+## About
+
+**TIG Circuit Generator** was developed by Luca at CryptoEconLab for The Innovation Game ZK Challenge, as part of the Challenge Owners collaboration between TIG and CEL.
