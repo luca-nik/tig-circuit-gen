@@ -299,4 +299,4 @@ done
 ```
 ## About
 
-**TIG Circuit Generator** was developed by Luca at CryptoEconLab for The Innovation Game ZK Challenge, as part of the Challenge Owners collaboration between TIG and CEL.
+**TIG Circuit Generator** was developed by Luca at [CryptoEconLab](https://cryptoeconlab.com/) for [The Innovation Game](https://tig.foundation/) ZK Challenge, as part of the Challenge Owners collaboration between TIG and CEL.
